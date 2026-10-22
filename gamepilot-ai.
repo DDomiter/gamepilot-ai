@@ -1,0 +1,510 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090d17">
+<title>GamePilot AI — Event Command Center</title>
+<style>
+:root {
+  --bg:#090d17; --panel:#111827; --panel2:#172033;
+  --line:#28344b; --text:#f3f6ff; --muted:#a3afc5;
+  --cyan:#43dcff; --purple:#8b72ff; --green:#42dfa0;
+  --amber:#ffc46a; --red:#ff647c;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:radial-gradient(ellipse at top right,#24204e 0,transparent 40%),var(--bg);
+  color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+button,input,select { font:inherit; }
+button { cursor:pointer; }
+.layout { display:grid; grid-template-columns:240px minmax(0,1fr); min-height:100vh; }
+.sidebar { padding:20px 13px; background:#0b101b; border-right:1px solid var(--line); }
+.brand { font-size:22px; font-weight:900; padding:4px 10px 22px; }
+.brand span { color:var(--cyan); }
+.eventbox,.card { border:1px solid var(--line); background:linear-gradient(160deg,#141d2e,#101624); border-radius:15px; }
+.eventbox { padding:13px; margin-bottom:18px; }
+.muted { color:var(--muted); font-size:13px; }
+nav { display:grid; gap:5px; }
+nav button { text-align:left; padding:11px 12px; border:0; border-radius:9px; color:#bdc7da; background:transparent; }
+nav button:hover,nav button.active { background:#222b40; color:white; }
+.main { min-width:0; padding:26px clamp(14px,3vw,36px) 45px; }
+.top { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:25px; }
+.eyebrow { font-size:11px; letter-spacing:.14em; color:var(--cyan); font-weight:800; text-transform:uppercase; }
+h1 { font-size:clamp(26px,3vw,35px); line-height:1.2; margin:5px 0; }
+h2 { font-size:18px; margin:0 0 14px; }
+h3 { font-size:15px; margin:0 0 10px; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.btn { border:1px solid var(--line); border-radius:9px; padding:9px 13px; background:#202a40; color:white; font-weight:700; }
+.btn.primary { background:linear-gradient(120deg,#7057f5,#368de7); border:0; }
+.page { display:none; }
+.page.active { display:block; }
+.grid { display:grid; gap:15px; }
+.kpis { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.card { padding:18px; min-width:0; }
+.metric { font-size:28px; font-weight:900; margin:5px 0; }
+.section-title { font-size:20px; margin:26px 0 13px; }
+.progress { height:8px; background:#273147; border-radius:99px; overflow:hidden; margin:12px 0; }
+.progress span { display:block; height:100%; background:linear-gradient(90deg,var(--purple),var(--cyan)); }
+.notice { padding:12px; background:#172238; border:1px solid #33415e; border-radius:10px; color:#d4def0; font-size:13px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td { text-align:left; padding:10px 8px; border-bottom:1px solid #273147; vertical-align:middle; }
+th { color:var(--muted); font-size:11px; text-transform:uppercase; }
+.tablewrap { overflow-x:auto; }
+.field { width:100%; min-width:0; padding:9px; border:1px solid #34415b; background:#0b1220; color:white; border-radius:8px; }
+.budgetrow { display:grid; grid-template-columns:minmax(100px,1fr) 100px; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid #273147; }
+.timeline { border-left:2px solid var(--purple); margin-left:6px; padding-left:16px; }
+.timeline-item { padding-bottom:17px; }
+.timeline-item b { display:block; }
+.checklist { display:grid; gap:12px; }
+.checklist label { display:flex; gap:9px; align-items:flex-start; }
+.checklist input { margin-top:5px; accent-color:var(--purple); }
+.chatbox { display:flex; flex-direction:column; min-height:350px; }
+.messages { flex:1; min-height:210px; max-height:360px; overflow:auto; margin-bottom:12px; }
+.bubble { white-space:pre-wrap; padding:10px 12px; border-radius:12px; background:#202a40; margin:8px 0; max-width:90%; font-size:13px; }
+.bubble.user { margin-left:auto; background:#4b3da0; }
+.chatform { display:flex; gap:8px; }
+.chatform input { flex:1; min-width:0; }
+.footer { margin-top:30px; color:var(--muted); font-size:12px; }
+.toast { position:fixed; right:18px; bottom:18px; background:#202b40; border:1px solid #42516e; border-radius:12px; padding:12px 16px; display:none; z-index:10; max-width:90vw; }
+@media(max-width:900px) {
+  .layout { grid-template-columns:72px minmax(0,1fr); }
+  .sidebar { padding:14px 7px; }
+  .brand { font-size:0; padding:4px 7px 20px; }
+  .brand:before { content:"GP"; font-size:20px; }
+  .brand span,.eventbox { display:none; }
+  nav button { text-align:center; padding:11px 3px; font-size:12px; }
+  nav button .navlabel { display:none; }
+  .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:620px) {
+  .layout { display:block; }
+  .sidebar { position:sticky; top:0; z-index:5; padding:7px; border-right:0; border-bottom:1px solid var(--line); }
+  .brand { display:none; }
+  nav { display:flex; overflow-x:auto; }
+  nav button { white-space:nowrap; padding:9px; }
+  nav button .navlabel { display:inline; }
+  .main { padding:17px 12px 35px; }
+  .top { align-items:flex-start; flex-direction:column; }
+  .kpis,.two,.three { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand">GamePilot<span> AI</span></div>
+  <div class="eventbox"><b>NL GAME ARENA</b><div class="muted">Valorant · Eventplan</div></div>
+  <nav aria-label="Hoofdnavigatie">
+    <button class="active" data-page="overview">◈ <span class="navlabel">Overzicht</span></button>
+    <button data-page="budget">€ <span class="navlabel">Budget</span></button>
+    <button data-page="tech">▣ <span class="navlabel">Hardware & netwerk</span></button>
+    <button data-page="teams">♙ <span class="navlabel">Teams</span></button>
+    <button data-page="schedule">◷ <span class="navlabel">Wedstrijdschema</span></button>
+    <button data-page="runbook">☷ <span class="navlabel">Draaiboek & taken</span></button>
+    <button data-page="stream">● <span class="navlabel">Livestream</span></button>
+    <button data-page="crew">◉ <span class="navlabel">Crew</span></button>
+    <button data-page="assistant">✦ <span class="navlabel">AI-assistent</span></button>
+  </nav>
+</aside>
+
+<main class="main">
+<header class="top">
+  <div>
+    <div class="eyebrow">Event command center</div>
+    <h1>GamePilot AI</h1>
+    <div class="muted">NL Game Arena · 12 oktober 2026 · Amsterdam</div>
+  </div>
+  <div class="actions">
+    <button class="btn" id="exportBtn">Export plan</button>
+    <button class="btn primary" id="saveBtn">Opslaan</button>
+  </div>
+</header>
+
+<section class="page active" id="overview">
+  <div class="grid kpis">
+    <article class="card"><div class="muted">Totaalbudget</div><div class="metric" id="kpiBudget">€4.820</div><div class="muted">van €5.000</div><div class="progress"><span id="kpiBudgetBar" style="width:96.4%"></span></div></article>
+    <article class="card"><div class="muted">Teams</div><div class="metric" id="kpiTeams">8</div><div class="muted">Voorbeeldplanning</div></article>
+    <article class="card"><div class="muted">Wedstrijden</div><div class="metric" id="kpiMatches">7</div><div class="muted">Tijdsloten in schema</div></article>
+    <article class="card"><div class="muted">Crewleden</div><div class="metric" id="kpiCrew">8</div><div class="muted">Voorbeeldrollen</div></article>
+  </div>
+  <h2 class="section-title">Eventstatus</h2>
+  <div class="grid two">
+    <article class="card">
+      <h2>Voorbereiding</h2>
+      <div class="muted">Vink taken af om de voortgang bij te werken.</div>
+      <div style="display:flex;justify-content:space-between;margin-top:15px"><b>Checklist</b><b id="progressLabel">0%</b></div>
+      <div class="progress"><span id="progressBar" style="width:0%"></span></div>
+      <button class="btn" data-goto="runbook">Bekijk taken</button>
+    </article>
+    <article class="card">
+      <h2>Aandachtspunten</h2>
+      <div class="notice">Bevestig locatie, deelnemers, wedstrijdregels en tijden vóór het evenement.</div><br>
+      <div class="notice">Test reservehardware, internet, stroom en livestream vooraf.</div>
+    </article>
+  </div>
+  <h2 class="section-title">Snel naar</h2>
+  <div class="grid three">
+    <article class="card"><h3>Budget</h3><p class="muted">Pas kosten aan en bekijk wat er overblijft.</p><button class="btn" data-goto="budget">Open budget</button></article>
+    <article class="card"><h3>Techniek</h3><p class="muted">Controleer hardware, kabels en netwerk.</p><button class="btn" data-goto="tech">Open techniek</button></article>
+    <article class="card"><h3>Draaiboek</h3><p class="muted">Plan werkzaamheden en controleer taken.</p><button class="btn" data-goto="runbook">Open draaiboek</button></article>
+  </div>
+</section>
+
+<section class="page" id="budget">
+  <h2 class="section-title">Budget & inkoop</h2>
+  <div class="grid two">
+    <article class="card">
+      <h2>Begroting</h2>
+      <p class="muted">Pas de bedragen aan; het totaal wordt automatisch berekend.</p>
+      <div id="budgetList"></div>
+      <div style="display:flex;justify-content:space-between;padding-top:15px"><b>Totaal</b><b id="budgetTotal">€4.820</b></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="muted">Resterend van €5.000</span><b id="budgetRemaining">€180</b></div>
+      <div class="progress"><span id="budgetProgress" style="width:96.4%"></span></div>
+      <p class="muted" id="budgetWarning">Binnen budget.</p>
+    </article>
+    <article class="card">
+      <h2>Inkoopchecklist</h2>
+      <div class="checklist">
+        <label><input type="checkbox" data-task> Offertes vergelijken</label>
+        <label><input type="checkbox" data-task> Leverdata bevestigen</label>
+        <label><input type="checkbox" data-task> Reserveapparatuur regelen</label>
+        <label><input type="checkbox" data-task> Facturen bewaren</label>
+      </div>
+      <br><div class="notice">Dit zijn voorbeeldbedragen. Controleer offertes, btw, transport en borg voordat je bestelt.</div>
+    </article>
+  </div>
+</section>
+
+<section class="page" id="tech">
+  <h2 class="section-title">Hardware & netwerk</h2>
+  <div class="grid three">
+    <article class="card"><h2>Gaming-pc's</h2><div class="metric">10</div><p class="muted">Voorbeeld: 8 actieve pc's en 2 reserve-pc's.</p></article>
+    <article class="card"><h2>Netwerk</h2><div class="metric">1 Gbit/s</div><p class="muted">Controleer switches, kabels en lokale netwerkconfiguratie.</p></article>
+    <article class="card"><h2>Internet</h2><div class="metric">Test vooraf</div><p class="muted">Controleer upload, latency en reserveverbinding.</p></article>
+  </div>
+  <h2 class="section-title">Technische checklist</h2>
+  <article class="card checklist">
+    <label><input type="checkbox" data-task> Alle pc's opstarten en testen</label>
+    <label><input type="checkbox" data-task> Game-updates en drivers controleren</label>
+    <label><input type="checkbox" data-task> Reserve-pc's en randapparatuur testen</label>
+    <label><input type="checkbox" data-task> Netwerkkabels en switches controleren</label>
+    <label><input type="checkbox" data-task> Internet en stream-upload testen</label>
+    <label><input type="checkbox" data-task> Stroomverdeling en kabelveiligheid controleren</label>
+  </article>
+</section>
+
+<section class="page" id="teams">
+  <h2 class="section-title">Teams & spelers</h2>
+  <article class="card">
+    <div class="actions" style="justify-content:space-between;margin-bottom:12px">
+      <p class="muted">Voorbeeldteams: vervang deze gegevens door de echte registraties.</p>
+      <button class="btn primary" id="addTeam">+ Team toevoegen</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Team</th><th>Captain</th><th>Spelers</th><th>Status</th><th></th></tr></thead><tbody id="teamRows"></tbody></table></div>
+  </article>
+</section>
+
+<section class="page" id="schedule">
+  <h2 class="section-title">Wedstrijdschema</h2>
+  <article class="card">
+    <p class="muted">Voorbeeldschema. Controleer wedstrijdduur en rusttijden met de organisator.</p>
+    <div class="tablewrap"><table><thead><tr><th>Tijd</th><th>Wedstrijd</th><th>Ronde</th><th>Status</th></tr></thead><tbody id="matchRows"></tbody></table></div>
+    <button class="btn primary" id="addMatch" style="margin-top:14px">+ Wedstrijd toevoegen</button>
+  </article>
+</section>
+
+<section class="page" id="runbook">
+  <h2 class="section-title">Draaiboek & taken</h2>
+  <div class="grid two">
+    <article class="card">
+      <h2>Draaiboek</h2>
+      <div class="timeline">
+        <div class="timeline-item"><b>07:30 — Crew aanwezig</b><div class="muted">Rolverdeling, toegang en veiligheidsinstructies.</div></div>
+        <div class="timeline-item"><b>08:00 — Techniek opbouwen</b><div class="muted">Pc's, kabels, netwerk en stream installeren.</div></div>
+        <div class="timeline-item"><b>09:00 — Test en check-in</b><div class="muted">Spelersregistratie, accounts en technische test.</div></div>
+        <div class="timeline-item"><b>09:45 — Opening</b><div class="muted">Regels, schema en praktische informatie.</div></div>
+        <div class="timeline-item"><b>10:00 — Eerste wedstrijden</b><div class="muted">Scores registreren en planning bewaken.</div></div>
+        <div class="timeline-item"><b>18:30 — Finale (voorbeeld)</b><div class="muted">Finale, prijsuitreiking en afsluiting.</div></div>
+        <div class="timeline-item"><b>Na afloop — Afbouw</b><div class="muted">Apparatuur tellen en locatie opruimen.</div></div>
+      </div>
+    </article>
+    <article class="card">
+      <h2>Af te vinken taken</h2>
+      <div class="checklist" id="taskList">
+        <label><input type="checkbox" data-task> Locatie en tijden bevestigd</label>
+        <label><input type="checkbox" data-task> Teamregistraties gecontroleerd</label>
+        <label><input type="checkbox" data-task> Wedstrijdregels gepubliceerd</label>
+        <label><input type="checkbox" data-task> Crewrollen toegewezen</label>
+        <label><input type="checkbox" data-task> Reservehardware getest</label>
+        <label><input type="checkbox" data-task> Livestream en audio getest</label>
+        <label><input type="checkbox" data-task> Prijzen en afsluiting voorbereid</label>
+        <label><input type="checkbox" data-task> Opruimplan afgesproken</label>
+      </div>
+      <br><button class="btn" id="resetTasks">Checklist resetten</button>
+    </article>
+  </div>
+</section>
+
+<section class="page" id="stream">
+  <h2 class="section-title">Livestream</h2>
+  <div class="grid three">
+    <article class="card"><h2>Productie</h2><div class="metric">1080p / 60 fps</div><p class="muted">Voorbeeldinstelling; pas aan de beschikbare upload en hardware aan.</p></article>
+    <article class="card"><h2>Scènes</h2><p>Starting soon</p><p>Live match</p><p>Break / pauze</p><p>Finale & winnaars</p></article>
+    <article class="card"><h2>Controlelijst</h2><div class="checklist"><label><input type="checkbox" data-task> Microfoon en game-audio</label><label><input type="checkbox" data-task> Game capture</label><label><input type="checkbox" data-task> Score-overlay</label><label><input type="checkbox" data-task> Streamtest terugkijken</label></div></article>
+  </div>
+</section>
+
+<section class="page" id="crew">
+  <h2 class="section-title">Crew & rollen</h2>
+  <article class="card">
+    <div class="actions" style="justify-content:space-between;margin-bottom:12px"><p class="muted">Voorbeeldrollen; pas namen en status aan.</p><button class="btn primary" id="addCrew">+ Crewlid toevoegen</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Naam</th><th>Rol</th><th>Status</th><th></th></tr></thead><tbody id="crewRows"></tbody></table></div>
+  </article>
+</section>
+
+<section class="page" id="assistant">
+  <h2 class="section-title">GamePilot AI-assistent</h2>
+  <div class="grid two">
+    <article class="card chatbox">
+      <h2>Event Helper</h2>
+      <p class="muted">Deze versie gebruikt ingebouwde antwoorden. Er is geen extern AI-model verbonden.</p>
+      <div id="messages" class="messages" aria-live="polite"><div class="bubble">Hoi! Stel een vraag over budget, hardware, netwerk, planning, crew of livestream.</div></div>
+      <form class="chatform" id="chatForm"><input class="field" id="chatInput" placeholder="Stel een vraag..." required><button class="btn primary" type="submit">Verstuur</button></form>
+    </article>
+    <article class="card">
+      <h2>Voorbeeldvragen</h2>
+      <div class="checklist">
+        <button class="btn" data-prompt="Controleer het budget">Controleer het budget</button>
+        <button class="btn" data-prompt="Maak een netwerk-storingsplan">Netwerk-storingsplan</button>
+        <button class="btn" data-prompt="Maak een finale-checklist">Finale-checklist</button>
+        <button class="btn" data-prompt="Wat zijn de belangrijkste prioriteiten?">Belangrijkste prioriteiten</button>
+      </div>
+    </article>
+  </div>
+</section>
+
+<div class="footer">GamePilot AI · Zelfstandige demo · Gegevens worden lokaal in deze browser bewaard wanneer opslag beschikbaar is.</div>
+</main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+const KEY='gamepilot-ai-static-v1';
+const original={
+ budget:[
+  ['Gaming-pc’s + randapparatuur',1620],
+  ['Locatie + stroom',1050],
+  ['Netwerk + bekabeling',700],
+  ['Livestream & productie',580],
+  ['Prijzen & trofee',500],
+  ['Crew & catering',370]
+ ],
+ teams:[
+  {name:'LowLand Lions',captain:'Leo',players:'Leo, Max, Finn, Jens, Sem',status:'Bevestigd'},
+  {name:'Pixel Raiders',captain:'Nova',players:'Nova, Kai, Luca, Bo, Dex',status:'Bevestigd'},
+  {name:'Delta Five',captain:'Rex',players:'Rex, Jay, Mo, Alex, Rio',status:'Bevestigd'},
+  {name:'Orange Protocol',captain:'Blaze',players:'Blaze, Ace, Wolf, Zen, Ash',status:'Bevestigd'},
+  {name:'North Wolves',captain:'Frost',players:'Frost, Finn, Kai, Neo, Lux',status:'Bevestigd'},
+  {name:'Syntax',captain:'Loop',players:'Loop, Stack, Null, Ping, Core',status:'Te controleren'},
+  {name:'Quantum',captain:'Qbit',players:'Qbit, Ion, Fluxx, Ray, Neo',status:'Bevestigd'},
+  {name:'Stormbyte',captain:'Storm',players:'Storm, Volt, Ash, NovaX, Vio',status:'Bevestigd'}
+ ],
+ matches:[
+  {time:'10:00',match:'LowLand Lions vs Stormbyte',round:'Kwartfinale',status:'Gepland'},
+  {time:'10:50',match:'Pixel Raiders vs Quantum',round:'Kwartfinale',status:'Gepland'},
+  {time:'11:40',match:'Delta Five vs Syntax',round:'Kwartfinale',status:'Gepland'},
+  {time:'12:30',match:'Orange Protocol vs North Wolves',round:'Kwartfinale',status:'Gepland'},
+  {time:'14:00',match:'Halve finale 1',round:'Halve finale',status:'Gepland'},
+  {time:'16:00',match:'Halve finale 2',round:'Halve finale',status:'Gepland'},
+  {time:'18:30',match:'Grand Final',round:'Finale',status:'Gepland'}
+ ],
+ crew:[
+  {name:'Sam',role:'Event lead',status:'Bevestigd'},
+  {name:'Mila',role:'Host',status:'Bevestigd'},
+  {name:'Dex',role:'Observer',status:'Bevestigd'},
+  {name:'Noor',role:'Camera',status:'Bevestigd'},
+  {name:'Jay',role:'Score admin',status:'Bevestigd'},
+  {name:'Alex',role:'Techniek',status:'Bevestigd'},
+  {name:'Ravi',role:'Netwerk',status:'Bevestigd'},
+  {name:'Open rol',role:'Support',status:'Open'}
+ ],
+ checks:{}
+};
+function clone(x){return JSON.parse(JSON.stringify(x));}
+function load(){
+ try{
+  const raw=localStorage.getItem(KEY);
+  if(raw){const parsed=JSON.parse(raw);return Object.assign(clone(original),parsed);}
+ }catch(e){}
+ return clone(original);
+}
+let data=load();
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function money(n){return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
+function total(){return data.budget.reduce((s,x)=>s+(Number(x[1])||0),0);}
+function toast(message){
+ const el=document.getElementById('toast');el.textContent=message;el.style.display='block';
+ clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.style.display='none',3000);
+}
+function save(show){
+ try{localStorage.setItem(KEY,JSON.stringify(data));if(show)toast('Opgeslagen in deze browser.');}
+ catch(e){if(show)toast('Opslaan niet beschikbaar. Gebruik Export plan voor een back-up.');}
+}
+function renderBudget(){
+ document.getElementById('budgetList').innerHTML=data.budget.map((item,i)=>
+  '<div class="budgetrow"><label for="budget-'+i+'">'+esc(item[0])+'</label><input class="field" id="budget-'+i+'" type="number" min="0" step="10" value="'+(Number(item[1])||0)+'" data-budget="'+i+'"></div>'
+ ).join('');
+ const sum=total(),left=5000-sum,pct=Math.min(100,Math.max(0,sum/5000*100));
+ document.getElementById('budgetTotal').textContent=money(sum);
+ document.getElementById('budgetRemaining').textContent=money(left);
+ document.getElementById('budgetProgress').style.width=pct+'%';
+ document.getElementById('budgetProgress').style.background=sum>5000?'var(--red)':'';
+ document.getElementById('budgetWarning').textContent=sum>5000?'Budget overschreden met '+money(sum-5000)+'.':'Het plan blijft binnen budget.';
+ document.getElementById('kpiBudget').textContent=money(sum);
+ document.getElementById('kpiBudgetBar').style.width=pct+'%';
+}
+function renderTeams(){
+ document.getElementById('teamRows').innerHTML=data.teams.map((t,i)=>
+  '<tr><td><input class="field" data-team="'+i+'" data-key="name" value="'+esc(t.name)+'" aria-label="Teamnaam"></td>'+
+  '<td><input class="field" data-team="'+i+'" data-key="captain" value="'+esc(t.captain)+'" aria-label="Captain"></td>'+
+  '<td><input class="field" data-team="'+i+'" data-key="players" value="'+esc(t.players)+'" aria-label="Spelers"></td>'+
+  '<td><select class="field" data-team="'+i+'" data-key="status">'+['Bevestigd','Te controleren','Open'].map(s=>'<option'+(t.status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></td>'+
+  '<td><button class="btn" data-remove-team="'+i+'">Verwijder</button></td></tr>'
+ ).join('');
+ document.getElementById('kpiTeams').textContent=data.teams.length;
+}
+function renderMatches(){
+ document.getElementById('matchRows').innerHTML=data.matches.map((m,i)=>
+  '<tr><td><input class="field" style="min-width:85px" data-match="'+i+'" data-key="time" value="'+esc(m.time)+'"></td>'+
+  '<td><input class="field" data-match="'+i+'" data-key="match" value="'+esc(m.match)+'"></td>'+
+  '<td><input class="field" data-match="'+i+'" data-key="round" value="'+esc(m.round)+'"></td>'+
+  '<td><select class="field" data-match="'+i+'" data-key="status">'+['Gepland','Bezig','Klaar'].map(s=>'<option'+(m.status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></td></tr>'
+ ).join('');
+ document.getElementById('kpiMatches').textContent=data.matches.length;
+}
+function renderCrew(){
+ document.getElementById('crewRows').innerHTML=data.crew.map((c,i)=>
+  '<tr><td><input class="field" data-crew="'+i+'" data-key="name" value="'+esc(c.name)+'"></td>'+
+  '<td><input class="field" data-crew="'+i+'" data-key="role" value="'+esc(c.role)+'"></td>'+
+  '<td><select class="field" data-crew="'+i+'" data-key="status">'+['Bevestigd','Open','Te controleren'].map(s=>'<option'+(c.status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></td>'+
+  '<td><button class="btn" data-remove-crew="'+i+'">Verwijder</button></td></tr>'
+ ).join('');
+ document.getElementById('kpiCrew').textContent=data.crew.length;
+}
+function updateProgress(){
+ const boxes=Array.from(document.querySelectorAll('[data-task]'));
+ const done=boxes.filter(b=>b.checked).length;
+ const pct=boxes.length?Math.round(done/boxes.length*100):0;
+ document.getElementById('progressLabel').textContent=pct+'%';
+ document.getElementById('progressBar').style.width=pct+'%';
+}
+function renderChecks(){
+ document.querySelectorAll('[data-task]').forEach((el,i)=>{
+  el.checked=!!data.checks[i];el.dataset.checkIndex=i;
+ });
+ updateProgress();
+}
+function renderAll(){renderBudget();renderTeams();renderMatches();renderCrew();renderChecks();}
+function showPage(id){
+ document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));
+ document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+ window.scrollTo(0,0);
+}
+document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.goto)));
+document.getElementById('budgetList').addEventListener('change',e=>{
+ if(e.target.dataset.budget===undefined)return;
+ data.budget[Number(e.target.dataset.budget)][1]=Math.max(0,Number(e.target.value)||0);
+ renderBudget();save(false);
+});
+document.getElementById('teamRows').addEventListener('change',e=>{
+ const i=e.target.dataset.team,k=e.target.dataset.key;if(i===undefined||!k)return;
+ data.teams[Number(i)][k]=e.target.value;save(false);renderTeams();
+});
+document.getElementById('teamRows').addEventListener('click',e=>{
+ if(e.target.dataset.removeTeam===undefined)return;
+ const i=Number(e.target.dataset.removeTeam);
+ if(confirm('Dit team verwijderen?')){data.teams.splice(i,1);renderTeams();save(false);}
+});
+document.getElementById('addTeam').addEventListener('click',()=>{
+ data.teams.push({name:'Nieuw team',captain:'',players:'',status:'Te controleren'});
+ renderTeams();save(false);
+});
+document.getElementById('matchRows').addEventListener('change',e=>{
+ const i=e.target.dataset.match,k=e.target.dataset.key;if(i===undefined||!k)return;
+ data.matches[Number(i)][k]=e.target.value;save(false);
+});
+document.getElementById('addMatch').addEventListener('click',()=>{
+ data.matches.push({time:'',match:'Nieuwe wedstrijd',round:'Ronde',status:'Gepland'});
+ renderMatches();save(false);
+});
+document.getElementById('crewRows').addEventListener('change',e=>{
+ const i=e.target.dataset.crew,k=e.target.dataset.key;if(i===undefined||!k)return;
+ data.crew[Number(i)][k]=e.target.value;save(false);renderCrew();
+});
+document.getElementById('crewRows').addEventListener('click',e=>{
+ if(e.target.dataset.removeCrew===undefined)return;
+ const i=Number(e.target.dataset.removeCrew);
+ if(confirm('Dit crewlid verwijderen?')){data.crew.splice(i,1);renderCrew();save(false);}
+});
+document.addEventListener('change',e=>{
+ if(!e.target.matches('[data-task]'))return;
+ data.checks[e.target.dataset.checkIndex]=e.target.checked;updateProgress();save(false);
+});
+document.getElementById('resetTasks').addEventListener('click',()=>{
+ if(confirm('Alle checklistvinkjes resetten?')){
+  data.checks={};renderChecks();save(false);
+ }
+});
+document.getElementById('saveBtn').addEventListener('click',()=>save(true));
+document.getElementById('exportBtn').addEventListener('click',()=>{
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob);const a=document.createElement('a');
+ a.href=url;a.download='gamepilot-eventplan.json';document.body.appendChild(a);a.click();a.remove();
+ URL.revokeObjectURL(url);toast('Back-upbestand gedownload.');
+});
+function answer(q){
+ const s=q.toLowerCase();
+ if(s.includes('budget')||s.includes('kosten')){
+  const sum=total();
+  return 'Het geplande budget is '+money(sum)+'. '+(sum>5000?'Dit is '+money(sum-5000)+' boven de limiet.':'Er blijft '+money(5000-sum)+' over.')+' Controleer offertes, btw en transportkosten.';
+ }
+ if(s.includes('netwerk')||s.includes('storing')||s.includes('internet'))
+  return 'Storingsplan: 1. Bepaal welke spelers getroffen zijn. 2. Controleer stroom en kabels. 3. Controleer switch en netwerkconfiguratie. 4. Test de verbinding opnieuw. 5. Laat de event lead bepalen wanneer veilig kan worden hervat.';
+ if(s.includes('finale'))
+  return 'Finale-checklist: bevestig teams en format, test wedstrijd-pc’s, controleer microfoon en game-audio, test stream en score-overlay, wijs een score-admin aan en plan een buffer.';
+ if(s.includes('prioriteit')||s.includes('belangrijkste'))
+  return 'Prioriteiten: 1. Bevestig locatie en tijden. 2. Bevestig teams en regels. 3. Test hardware en netwerk. 4. Wijs crewrollen toe. 5. Test de livestream. 6. Houd budgetruimte over voor onverwachte kosten.';
+ if(s.includes('hardware')||s.includes('pc'))
+  return 'Een voorbeeldplanning voor acht teams kan acht actieve pc’s en twee reserve-pc’s gebruiken. Test updates, drivers, randapparatuur, stroom en prestaties vóór het evenement.';
+ if(s.includes('planning')||s.includes('schema')||s.includes('tijd'))
+  return 'Het voorbeeldschema start om 10:00 met kwartfinales, gevolgd door halve finales en een finale. Controleer de wedstrijdduur en laat ruimte voor pauzes en uitloop.';
+ if(s.includes('crew')||s.includes('rol'))
+  return 'Zorg voor een event lead, wedstrijdbeheer, technische ondersteuning, host en livestreambeheer. Leg per rol een verantwoordelijke en vervanger vast.';
+ if(s.includes('stream')||s.includes('livestream'))
+  return 'Test stream-output, microfoon, game-audio, capture, overlays en internet-upload. Maak een testopname en bekijk die terug. Deze demo is niet automatisch verbonden met een streamingplatform.';
+ return 'Ik kan helpen met budget, hardware, netwerk, planning, crew en livestream. Dit is een ingebouwde demo-assistent, geen verbonden online AI-model.';
+}
+function sendChat(q){
+ const box=document.getElementById('messages');
+ const user=document.createElement('div');user.className='bubble user';user.textContent=q;box.appendChild(user);
+ const reply=document.createElement('div');reply.className='bubble';reply.textContent=answer(q);box.appendChild(reply);
+ box.scrollTop=box.scrollHeight;
+}
+document.getElementById('chatForm').addEventListener('submit',e=>{
+ e.preventDefault();const input=document.getElementById('chatInput');
+ const q=input.value.trim();if(!q)return;sendChat(q);input.value='';
+});
+document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.prompt)));
+renderAll();
+})();
+</script>
+</body>
+</html>
